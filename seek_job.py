@@ -19,22 +19,25 @@ def look_for_job():
 
     pop_languages = ['TypeScript', 'Swift', 'Scala', 'Kotlin', 'Go', 'C#',
                 'C++', '1С', 'PHP', 'Ruby', 'Python', 'JavaScript', 'Java']
-    pop_languages = {lang: [{'vacancies_found': 0}, {'ids': []}] for lang in pop_languages}
+    pop_languages = {lang: [{'vacancies_found': 0},
+                            {'vacancies_processed': 0},
+                            {'average_salary': 0},
+                            {'ids': []}] for lang in pop_languages}
     resp = requests.get(f'{job_api}/{v}/{id}', headers=headers)
     resp = requests.get(f'{job_api}/{v}?{s}={Key_word}&{a}=1&{p}=30&page=0&per_page=20', headers=headers)
     for page in range(resp.json().get('pages')):
         resp = requests.get(f'{job_api}/{v}?{s}={Key_word}&{a}=1&{p}=30&page={page}&per_page=20', headers=headers)
         for item in resp.json().get('items'):
-            match_lang(item.get('id'), item.get('name'), pop_languages)
+            match_lang(item.get('id'), item.get('name'),item.get('salary'), pop_languages)
+
+    for lang in pop_languages:
+        if pop_languages[lang][1]['vacancies_processed'] > 0:
+            pop_languages[lang][2]['average_salary'] = int(pop_languages[lang][2]['average_salary'] /
+                                                           pop_languages[lang][1]['vacancies_processed'])
     print(pop_languages)
 
-    # resp = requests.get(f'{job_api}/{v}?{s}={Key_Lang}&{a}=1&{p}=30&{ws}=True&page=0&per_page=20', headers=headers)
-    # for item in resp.json().get('items'):
-    #     print(item.get('salary'))
-    #     avg_offer = predict_rub_salary(item.get('salary'))
-    #     print(f'Average {Key_Lang} offer is: {avg_offer}')
 
-def match_lang(job_id, job_name, pop_languages):
+def match_lang(job_id, job_name, salary, pop_languages):
     for lang, count in pop_languages.items():
         pattern = re.sub(r'C\+\+', 'C\+\+', lang)
         regex = re.compile(pattern, re.IGNORECASE)
@@ -45,7 +48,12 @@ def match_lang(job_id, job_name, pop_languages):
         match = re.search(regex, search_str)
         if match:
             pop_languages[lang][0]['vacancies_found'] += 1
-            pop_languages[lang][1]['ids'].append(job_id)
+            pop_languages[lang][3]['ids'].append(job_id)
+            if salary is not None:
+                avg_offer = predict_rub_salary(salary)
+                if avg_offer is not None:
+                    pop_languages[lang][1]['vacancies_processed'] += 1
+                    pop_languages[lang][2]['average_salary'] = pop_languages[lang][2]['average_salary'] + avg_offer
             return
 
 
