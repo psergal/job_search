@@ -12,18 +12,14 @@ def look_for_job():
     s = 'text'
     a = 'area'
     p = 'period'
-    id = '31646032'
     Key_word = 'Программист'
-    Key_Lang = 'Python'
-    ws = 'only_with_salary'
 
     pop_languages = ['TypeScript', 'Swift', 'Scala', 'Kotlin', 'Go', 'C#',
-                'C++', '1С', 'PHP', 'Ruby', 'Python', 'JavaScript', 'Java']
+                    'C++', '1С', 'PHP', 'Ruby', 'Python', 'JavaScript', 'Java']
     pop_languages = {lang: [{'vacancies_found': 0},
                             {'vacancies_processed': 0},
                             {'average_salary': 0},
                             {'ids': []}] for lang in pop_languages}
-    resp = requests.get(f'{job_api}/{v}/{id}', headers=headers)
     resp = requests.get(f'{job_api}/{v}?{s}={Key_word}&{a}=1&{p}=30&page=0&per_page=20', headers=headers)
     for page in range(resp.json().get('pages')):
         resp = requests.get(f'{job_api}/{v}?{s}={Key_word}&{a}=1&{p}=30&page={page}&per_page=20', headers=headers)
@@ -44,7 +40,7 @@ def match_lang(job_id, job_name, salary, pop_languages):
         search_str = re.sub('1C', '1С', job_name)
         search_str = re.sub(r'С\+{2}', 'C++', search_str)
         search_str = re.sub(r'С\#', 'C#', search_str)
-        search_str= re.sub('JS', 'JavaScript', search_str)
+        search_str = re.sub('JS', 'JavaScript', search_str)
         match = re.search(regex, search_str)
         if match:
             pop_languages[lang][0]['vacancies_found'] += 1
