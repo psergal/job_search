@@ -9,13 +9,24 @@ It uses api search engine of tow popular sites:
 
 ## Installing
 Requirements.txt contain all libraries that are needed for executing
+Registration is required for the access to Superjob API site
+After the application has been registered you will get a secret key
+It is needed to create `.env` file with 4 lines:
+* Secret_key = Secret_key
+* clienr_id = clienr_id
+* login = login
+* pwd = pwd 
 
 ## Usage
-For both sites  registration is required.
-
-### Easy usage  
+The executable module is `looking_for_job_sites.py`
+When you run the module it shows two tables with the most popular languages statistics
+Statistics obtains for the last 30 days from the most popular Russian sites
+Average salary calculates for each programming language  
+ 
 
 ### Advanced usage
+If the `popular_language` dictionary  modified it could show another programming language stats 
+
 
 ## Project Goals
 The code is written for educational purposes on online-course for web-developers [dvmn.org](https://dvmn.org/modules/)
