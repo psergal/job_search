@@ -4,6 +4,7 @@ import os
 import http.client as httplib
 import re
 import math
+from terminaltables import SingleTable
 
 def look_superjob():
     httplib.HTTPConnection.debuglevel = 0  # 1 -включает
@@ -51,7 +52,7 @@ def look_superjob():
         if pop_languages[lang][1]['vacancies_processed'] > 0:
             pop_languages[lang][2]['average_salary'] = int(pop_languages[lang][2]['average_salary'] /
                                                            pop_languages[lang][1]['vacancies_processed'])
-    print(pop_languages)
+    print_lang_stat('SuperJob', pop_languages)
 
 
 def match_lang(pop_languages,job_id, job_name, salary_from, salary_to, salary_cur):
@@ -88,6 +89,22 @@ def predict_rub_salary(salary_from, salary_to, cur):
             return int(predict_salary)
 
 
+def print_lang_stat(job_site, pop_languages):
+    if len(pop_languages) > 0:
+        table_data = [
+            ['Programming language', 'Vacancies founded', 'Vacancies processed', 'Average_salary']
+        ]
+        for lang in pop_languages.items():
+            table_data.append([lang[0],
+                               '{p[vacancies_found]}'.format(p=lang[1][0]),
+                               '{p[vacancies_processed]}'.format(p=lang[1][1]),
+                               '{p[average_salary]}'.format(p=lang[1][2])
+                               ])
+        table_instance = SingleTable(table_data, job_site.capitalize())
+        table_instance.justify_columns[1] = 'right'
+        table_instance.justify_columns[2] = 'right'
+        table_instance.justify_columns[3] = 'right'
+        print(table_instance.table)
 
 
 if __name__ == '__main__':

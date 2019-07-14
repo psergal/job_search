@@ -1,4 +1,4 @@
-# Program language appraisal 
+# Programming languages appraisal 
 ***
 ## Why and What
 THis is a training project for better understanding how handling with API services.
