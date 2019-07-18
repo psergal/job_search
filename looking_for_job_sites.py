@@ -58,10 +58,10 @@ def look_hh(pop_languages):
 
 def look_superjob(pop_languages):
     load_dotenv()
-    sj_key = os.getenv('Secret_key')
-    sj_client_id = os.getenv('clienr_id')
-    sj_login = os.getenv('login')
-    sj_pwd = os.getenv('pwd')
+    sj_key = os.getenv('SJ_SECRET_KEY')
+    sj_client_id = os.getenv('SJ_CLIENT_ID')
+    sj_login = os.getenv('SJ_LOGIN')
+    sj_pwd = os.getenv('SJ_PWD')
     headers = {
         'Host': 'api.superjob.ru',
         'X-Api-App-Id': sj_key,
