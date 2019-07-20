@@ -32,7 +32,7 @@ just type `python looking_for_job_sites.py`
 It should output two tables with requested stats.  
 It will look like the followed example:
 
-![пример выаода](doc/salary_report.jpg)
+![output example](doc/salary_report.jpg)
 
 
 When you run the module it shows two tables with the most popular languages statistics  

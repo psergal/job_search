@@ -14,21 +14,21 @@ def look_job_sites():
     httplib.HTTPConnection.debuglevel = 0  # 1 -включает
     pop_languages = ['TypeScript', 'Swift', 'Scala', 'Kotlin', 'Go', 'C#',
                      'C++', '1С', 'PHP', 'Ruby', 'Python', 'JavaScript', 'Java']
+    pop_sj_languages = look_superjob(pop_languages)
+    print_lang_stat('SuperJob', pop_sj_languages)
     pop_languages = {lang: [{'vacancies_found': 0},
                             {'vacancies_processed': 0},
                             {'average_salary': 0},
                             {'ids': []}] for lang in pop_languages}
-    pop_languages = look_superjob(pop_languages)
-    print_lang_stat('SuperJob', pop_languages)
-    pop_languages = {lang: [{'vacancies_found': 0},
-                            {'vacancies_processed': 0},
-                            {'average_salary': 0},
-                            {'ids': []}] for lang in pop_languages}
-    pop_languages = look_hh(pop_languages)
-    print_lang_stat('HeadHunter', pop_languages)
+    pop_hh_languages = look_hh(pop_languages)
+    print_lang_stat('HeadHunter', pop_hh_languages)
 
 
 def look_hh(pop_languages):
+    pop_languages = {lang: [{'vacancies_found': 0},
+                            {'vacancies_processed': 0},
+                            {'average_salary': 0},
+                            {'ids': []}] for lang in pop_languages}
     job_api = 'https://api.hh.ru/vacancies'
     headers ={
     'User-Agent': 'HH-User-Agent',
@@ -41,22 +41,30 @@ def look_hh(pop_languages):
     page = 0
     per_page = 20
     param = {'text': key_word, 'area': area, 'period': period, 'page':page, 'per_page': per_page}
-    resp = requests.get(job_api, params=param, headers=headers)
-    for page in range(resp.json().get('pages')):
+    resp = requests.get(job_api, params=param, headers=headers).json()
+    for page in range(resp.get('pages')):
         param['page'] = page
-        resp = requests.get(job_api, params=param, headers=headers)
-        for item in resp.json().get('items'):
+        resp = requests.get(job_api, params=param, headers=headers).json()
+        for item in resp.get('items'):
             if item.get('salary') is None:
                 salary_cur, salary_from, salary_to = '', 0, 0
             else:
-                salary_cur = '' if item.get('salary').get('currency') is None else item.get('salary').get('currency')
-                salary_from = 0 if item.get('salary').get('from') is None else item.get('salary').get('from')
-                salary_to = 0 if item.get('salary').get('to') is None else item.get('salary').get('to')
+                salary_cur = item.get('salary').get('currency', '') or ''
+                salary_from = item.get('salary').get('from', 0) or 0
+                salary_to = item.get('salary').get('to', 0) or 0
             match_lang(pop_languages, item.get('id'), item.get('name'), salary_from,salary_to, salary_cur)
+    for lang in pop_languages:
+        if pop_languages[lang][1]['vacancies_processed'] > 0:
+            pop_languages[lang][2]['average_salary'] = int(pop_languages[lang][2]['average_salary'] /
+                                                           pop_languages[lang][1]['vacancies_processed'])
     return pop_languages
 
 
 def look_superjob(pop_languages):
+    pop_languages = {lang: [{'vacancies_found': 0},
+                            {'vacancies_processed': 0},
+                            {'average_salary': 0},
+                            {'ids': []}] for lang in pop_languages}
     load_dotenv()
     sj_key = os.getenv('SJ_SECRET_KEY')
     sj_client_id = os.getenv('SJ_CLIENT_ID')
@@ -69,8 +77,8 @@ def look_superjob(pop_languages):
     }
     api_sj = 'https://api.superjob.ru/2.0/oauth2/password'
     resp = requests.get(f'{api_sj}/?login={sj_login}&password={sj_pwd}&client_id={sj_client_id}&client_secret={sj_key}',
-                        headers=headers)
-    access_token = resp.json().get('access_token')
+                        headers=headers).json()
+    access_token = resp.get('access_token')
     headers['Authorization'] = f'Bearer {access_token}'
     api_sj = 'https://api.superjob.ru/2.0/vacancies/'
     catalogue_id_development = 48
@@ -78,15 +86,19 @@ def look_superjob(pop_languages):
     keyword = 'Программист'
     count = 50
     param = {'town': town_id, 'catalogues': catalogue_id_development, 'keyword': keyword, 'count': count}
-    resp = requests.get(api_sj, params=param, headers=headers)
-    total = int(resp.json().get('total'))
+    resp = requests.get(api_sj, params=param, headers=headers).json()
+    total = int(resp.get('total'))
     pages = math.ceil(total//count)
     for page in range(pages+1):
         param['page'] = page
-        resp = requests.get(api_sj, params=param, headers=headers)
-        for vacancy in resp.json().get('objects'):
+        resp = requests.get(api_sj, params=param, headers=headers).json()
+        for vacancy in resp.get('objects'):
             match_lang(pop_languages,vacancy.get('id_client'), vacancy.get('profession'),
                        vacancy.get('payment_from'), vacancy.get('payment_to'), vacancy.get('currency'))
+    for lang in pop_languages:
+        if pop_languages[lang][1]['vacancies_processed'] > 0:
+            pop_languages[lang][2]['average_salary'] = int(pop_languages[lang][2]['average_salary'] /
+                                                           pop_languages[lang][1]['vacancies_processed'])
     return pop_languages
 
 
