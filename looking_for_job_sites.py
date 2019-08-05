@@ -13,19 +13,19 @@ def look_job_sites():
     """
     httplib.HTTPConnection.debuglevel = 0  # 1 -включает
     pop_languages = {
-        'TypeScript': r'TypeScript|Type.Script',
-        'Swift': r'Swift|Cвифт',
-        'Scala': r'Scala|Скала',
-        'Kotlin': r'Kotlin|Котлин',
-        'Go': r'Go|Го',
-        'C#': r'C#|Си.шарп',
-        'C++': r'C\+\+|С\+\+',
-        '1С': r'1С|1С',
-        'PHP': r'PHP|ПХП|РНР',
-        'Ruby': r'Ruby|Руби',
-        'Python': r'Python|Phyton|Питон|Пайтон',
-        'JavaScript': r'JavaScript|JS|Java.Script',
-        'Java': r'Java|Ява|Джава'
+        'TypeScript': re.compile(r'TypeScript|Type.Script', re.IGNORECASE),
+        'Swift': re.compile(r'Swift|Cвифт', re.IGNORECASE),
+        'Scala': re.compile(r'Scala|Скала', re.IGNORECASE),
+        'Kotlin': re.compile(r'Kotlin|Котлин', re.IGNORECASE),
+        'Go': re.compile(r'Go|Го',re.IGNORECASE),
+        'C#': re.compile(r'C#|Си.шарп', re.IGNORECASE),
+        'C++': re.compile(r'C\+\+|С\+\+', re.IGNORECASE),
+        '1С': re.compile(r'1С|1С', re.IGNORECASE),
+        'PHP': re.compile(r'PHP|ПХП|РНР', re.IGNORECASE),
+        'Ruby': re.compile(r'Ruby|Руби', re.IGNORECASE),
+        'Python': re.compile(r'Python|Phyton|Питон|Пайтон', re.IGNORECASE),
+        'JavaScript': re.compile(r'JavaScript|JS|Java.Script', re.IGNORECASE),
+        'Java': re.compile(r'Java|Ява|Джава', re.IGNORECASE)
     }
     pop_sj_languages = look_superjob(pop_languages)
     print_lang_stat('SuperJob', pop_sj_languages)
@@ -34,12 +34,7 @@ def look_job_sites():
 
 
 def look_hh(pop_languages):
-    pop_languages_stats = {lang: [
-        {'patterns':  re.compile(pattern,re.IGNORECASE)},
-        {'vacancies_found': 0},
-        {'vacancies_processed': 0},
-        {'average_salary': 0},
-        {'ids': []}] for lang, pattern in pop_languages.items()}
+    pop_languages_stats = {lang: [0,0,0] for lang in pop_languages}
     job_api = 'https://api.hh.ru/vacancies'
     headers ={
     'User-Agent': 'HH-User-Agent',
@@ -66,24 +61,30 @@ def look_hh(pop_languages):
                 salary_cur = item.get('salary').get('currency', '') or ''
                 salary_from = item.get('salary').get('from', 0) or 0
                 salary_to = item.get('salary').get('to', 0) or 0
-            match_lang(pop_languages_stats, item.get('id'), item.get('name'), salary_from, salary_to, salary_cur)
+            # match_lang(pop_languages_stats, item.get('id'), item.get('name'), salary_from, salary_to, salary_cur)
+            match_lang = retrieve_lang(pop_languages,item.get('name'))
+            if match_lang is None:
+                continue
+            pop_languages_stats[match_lang][0] += 1  # vacancy_founded
+            if  salary_from + salary_to ==0:
+                continue
+            avg_offer = predict_rub_salary(salary_from, salary_to, salary_cur)
+            if avg_offer is None:
+                continue
+            pop_languages_stats[match_lang][1] += 1  # vacancies_processed
+            pop_languages_stats[match_lang][2] += avg_offer  # average_salary
         if page == hh_response['pages']-1:
             break
 
     for lang, statistics in pop_languages_stats.items():
-        if statistics[2]['vacancies_processed'] > 0:
-            statistics[3]['average_salary'] = int(statistics[3]['average_salary'] / statistics[2]['vacancies_processed'])
+        if statistics[1] > 0:
+            statistics[2] = int(statistics[2] / statistics[1])
     return pop_languages_stats
 
 
 def look_superjob(pop_languages):
-    pop_languages_stats = {lang: [
-        {'patterns':  re.compile(pattern,re.IGNORECASE)},
-        {'vacancies_found': 0},
-        {'vacancies_processed': 0},
-        {'average_salary': 0},
-        {'ids': []}] for lang, pattern in pop_languages.items()}
-    params ={'login': sj_login,'password': sj_pwd, 'client_id' : sj_client_id, 'client_secret': sj_key}
+    pop_languages_stats = {lang: [0,0,0] for lang in pop_languages}
+    params ={'login': sj_login,'password': sj_pwd, 'client_id': sj_client_id, 'client_secret': sj_key}
     headers = {
         'Host': 'api.superjob.ru',
         'X-Api-App-Id': sj_key,
@@ -107,31 +108,34 @@ def look_superjob(pop_languages):
         if 'error' in sj_response:
             raise requests.exceptions.HTTPError(sj_response['error'])
         for vacancy in sj_response['objects']:
-            match_lang(pop_languages_stats, vacancy.get('id_client'), vacancy.get('profession'),
-                       vacancy.get('payment_from', 0), vacancy.get('payment_to', 0), vacancy.get('currency', ''))
+            match_lang = retrieve_lang(pop_languages, vacancy.get('profession'))
+            if match_lang is None:
+                continue
+            pop_languages_stats[match_lang][0] += 1  # vacancy_founded
+            if vacancy.get('payment_from', 0) + vacancy.get('payment_to', 0) == 0:
+                continue
+            avg_offer = predict_rub_salary(vacancy.get('payment_from', 0),
+                                           vacancy.get('payment_to', 0),
+                                           vacancy.get('currency', '')
+                                           )
+            if avg_offer is None:
+                continue
+            pop_languages_stats[match_lang][1] += 1  # vacancies_processed
+            pop_languages_stats[match_lang][2] += avg_offer  # average_salary
         more = sj_response['more']
         params['page'] += 1
 
     for lang, statistics in pop_languages_stats.items():
-        if statistics[2]['vacancies_processed'] > 0:
-            statistics[3]['average_salary'] = int(statistics[3]['average_salary'] / statistics[2]['vacancies_processed'])
+        if statistics[1] > 0:
+            statistics[2] = int(statistics[2] / statistics[1])
     return pop_languages_stats
 
 
-def match_lang(pop_languages_stats, job_id, job_name, salary_from, salary_to, salary_cur):
-    for lang, prop_list in pop_languages_stats.items():
-        match = re.search(prop_list[0]['patterns'], job_name)
-        if not match:
-            continue
-        prop_list[1]['vacancies_found'] += 1
-        prop_list[4]['ids'].append(job_id)
-        if salary_from+salary_to > 0:
-            avg_offer = predict_rub_salary(salary_from, salary_to, salary_cur)
-            if avg_offer is None:
-                break
-            prop_list[2]['vacancies_processed'] += 1
-            prop_list[3]['average_salary'] = prop_list[3]['average_salary'] + avg_offer
-        break
+def retrieve_lang(pop_languages, job_name):
+    for lang, pattern in pop_languages.items():
+        match = re.search(pattern, job_name)
+        if match:
+            return lang
 
 
 def predict_rub_salary(salary_from, salary_to, cur):
@@ -155,9 +159,9 @@ def print_lang_stat(job_site, pop_languages):
     ]
     for lang, statistics in pop_languages.items():
         table_data.append([lang,
-                           '{p[vacancies_found]}'.format(p=statistics[1]),
-                           '{p[vacancies_processed]}'.format(p=statistics[2]),
-                           '{p[average_salary]}'.format(p=statistics[3])
+                           '{p[0]}'.format(p=statistics),
+                           '{p[1]}'.format(p=statistics),
+                           '{p[2]}'.format(p=statistics)
                            ])
     table_instance = SingleTable(table_data, job_site.capitalize())
     table_instance.justify_columns = dict(zip(range(1, 4), ['right']*3))
